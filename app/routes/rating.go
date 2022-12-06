@@ -12,6 +12,7 @@ func GetMemes(c *gin.Context) {
 	count, date, err := service.MongoPeriod(cPeriod).GetSearchPeriodParams()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 	posts := mongoDB.GetPostsByRating(count, date)
 	if posts == nil {
