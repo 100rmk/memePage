@@ -14,8 +14,9 @@ var Tg = telegram{
 }
 
 var AppConf = appConfig{
-	Host: getEnv("SERVER_HOST", "localhost"),
-	Port: getEnv("SERVER_PORT", "1337"),
+	Host:        getEnv("SERVER_HOST", "localhost"),
+	Port:        getEnv("SERVER_PORT", "1337"),
+	ContentPath: getEnv("CONTENT_PATH", "./"),
 }
 
 type mongoDB struct {
@@ -28,8 +29,9 @@ type telegram struct {
 }
 
 type appConfig struct {
-	Host string
-	Port string
+	Host        string
+	Port        string
+	ContentPath string
 }
 
 func getEnv(key, fallback string) string {

@@ -2,18 +2,26 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"log"
 	"memePage/app/conf"
 	"net/http"
 	"os"
-	"sync"
+	"time"
+)
+
+const (
+	Today   MongoPeriod = "today"
+	Month               = "month"
+	AllTime             = "all"
 )
 
 type (
-	GetFilePath struct {
+	FilePathResp struct {
 		Ok     bool `json:"ok"`
 		Result struct {
 			FileId       string `json:"file_id"`
@@ -23,73 +31,120 @@ type (
 		} `json:"result"`
 	}
 
-	FailGetFilePath struct {
+	FailFilePathResp struct {
 		Ok          bool   `json:"ok"`
 		ErrorCode   int    `json:"error_code"`
 		Description string `json:"description"`
 	}
 
 	Post struct {
-		LikesCount int
-		FileId     string
-		TgPath     string
+		LikesCount    int
+		DislikesCount int
+		FileId        string
+		TgPath        string
 	}
+
+	MongoPeriod string
 )
 
-func GetFilePaths(wg *sync.WaitGroup, posts []bson.M, resultPosts *[]Post) {
-	var client http.Client
-	defer wg.Done()
-
-	for i, elem := range posts {
-		reqUrl := fmt.Sprintf(
-			"https://api.telegram.org/bot%s/getFile?file_id=%s",
-			conf.Tg.Token,
-			elem["file_id"])
-
-		res, err := client.Get(reqUrl)
-		if err != nil {
-			log.Printf("could not create request: %s\n", err)
+func CheckFiles(posts []bson.M) {
+	for _, post := range posts {
+		filePath := fmt.Sprintf("%s/%s", conf.AppConf.ContentPath, post["file_id"])
+		if !IsFileExist(filePath) {
+			postTgUrl := make(chan string)
+			go GetFilePath(post["file_id"].(string), postTgUrl)
+			go DownloadTgFile(<-postTgUrl, filePath)
+			close(postTgUrl)
 		}
-
-		respBody, err := io.ReadAll(res.Body)
-		if err != nil {
-			log.Printf("could not read response body: %s\n", err)
-		}
-
-		if res.StatusCode != http.StatusOK {
-			parsedResp := FailGetFilePath{}
-			json.Unmarshal(respBody, &parsedResp)
-			log.Printf("Failed to get file path %s", parsedResp.Description)
-		} else {
-			parsedResp := GetFilePath{}
-			json.Unmarshal(respBody, &parsedResp)
-			(*resultPosts)[i] = Post{
-				LikesCount: int(elem["count"].(int32)),
-				FileId:     parsedResp.Result.FileId,
-				TgPath:     parsedResp.Result.FilePath}
-		}
-
-		res.Body.Close()
 	}
 }
 
-func DownloadTgFile(post Post) {
+func GetFilePath(postId string, tgUrl chan string) {
 	var client http.Client
-	reqUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", conf.Tg.Token, post.TgPath)
-	resp, err := client.Get(reqUrl)
+
+	reqUrl := fmt.Sprintf(
+		"https://api.telegram.org/bot%s/getFile?file_id=%s",
+		conf.Tg.Token,
+		postId)
+
+	res, err := client.Get(reqUrl)
+	defer res.Body.Close()
 	if err != nil {
 		log.Printf("could not create request: %s\n", err)
 	}
+
+	respBody, err := io.ReadAll(res.Body)
+	if err != nil {
+		log.Printf("could not read response body: %s\n", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		parsedResp := FailFilePathResp{}
+		json.Unmarshal(respBody, &parsedResp)
+		log.Printf("Failed to get file path %s", parsedResp.Description)
+	} else {
+		parsedResp := FilePathResp{}
+		json.Unmarshal(respBody, &parsedResp)
+
+		tgUrl <- parsedResp.Result.FilePath
+	}
+
+}
+
+func DownloadTgFile(fileUrl string, filePath string) {
+	var client http.Client
+	reqUrl := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", conf.Tg.Token, fileUrl)
+	resp, err := client.Get(reqUrl)
 	defer resp.Body.Close()
-	// TODO: поменять на нормальный путь "/opt/content/files/%s"
-	out, err := os.Create(fmt.Sprintf("./%s", post.FileId))
+	if err != nil {
+		log.Printf("could not create request: %s\n", err)
+	}
+
+	out, err := os.Create(filePath)
+	defer out.Close()
 	if err != nil {
 		log.Printf("Failed to create file: %s\n", err)
 	}
-	defer out.Close()
 
 	_, err = io.Copy(out, resp.Body)
 }
 
-// get path https://api.telegram.org/bot1925154606:AAE28-g4bxzBdKc3eIXMvDJr01PqSAqsihU/getFile?file_id=AgACAgIAAxkBAAJA6GNNUaBcB-9SuuBOX2Ax4h5iZJaVAAKyxDEbz-hoSuYGheVT5kH3AQADAgADeQADKgQ
-// download by path https://api.telegram.org/file/bot1925154606:AAE28-g4bxzBdKc3eIXMvDJr01PqSAqsihU/photos/photos/file_6120
+func IsFileExist(fileName string) bool {
+	_, err := os.Stat(fileName)
+
+	if os.IsNotExist(err) {
+		return false
+	} else {
+		return true
+	}
+}
+
+func (r MongoPeriod) GetSearchPeriodParams() (int64, primitive.DateTime, error) {
+	now := time.Now()
+	switch r {
+	case Today:
+		return 1,
+			primitive.NewDateTimeFromTime(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)),
+			nil
+	case Month:
+		return 10,
+			primitive.NewDateTimeFromTime(time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, time.Local)),
+			nil
+	case AllTime:
+		return 10,
+			primitive.NewDateTimeFromTime(time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)),
+			nil
+	default:
+		return 0, 0, errors.New("unsupported period")
+	}
+}
+
+func GetUrls(posts []primitive.M) []string {
+	urls := make([]string, len(posts))
+
+	for i, post := range posts {
+		urls[i] = fmt.Sprintf("%s%s", conf.AppConf.ContentPath, post["file_id"])
+	}
+
+	return urls
+}
