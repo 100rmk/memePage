@@ -25,7 +25,6 @@ func ConnectDb(uri string) {
 }
 
 func InitCollections(dbName string) {
-	PostsColl = GetCollection(MClient, "posts", dbName)
 	PostsRatingColl = GetCollection(MClient, "rating", dbName)
 }
 
