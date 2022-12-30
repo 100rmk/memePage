@@ -16,6 +16,7 @@ import (
 
 const (
 	Today   MongoPeriod = "today"
+	Week                = "week"
 	Month               = "month"
 	AllTime             = "all"
 )
@@ -125,6 +126,11 @@ func (r MongoPeriod) GetSearchPeriodParams() (int64, primitive.DateTime, error) 
 	case Today:
 		return 1,
 			primitive.NewDateTimeFromTime(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)),
+			nil
+	case Week:
+		return 10,
+			primitive.NewDateTimeFromTime(
+				time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())+1, 0, 0, 0, 0, time.Local)),
 			nil
 	case Month:
 		return 10,
