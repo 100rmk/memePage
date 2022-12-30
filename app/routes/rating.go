@@ -20,5 +20,5 @@ func GetMemes(c *gin.Context) {
 		return
 	}
 	service.CheckFiles(posts)
-	c.JSON(http.StatusOK, gin.H{"result": service.GetUrls(posts)})
+	c.JSON(http.StatusOK, gin.H{"result": service.GetPosts(posts)})
 }

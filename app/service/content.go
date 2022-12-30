@@ -45,6 +45,12 @@ type (
 		TgPath        string
 	}
 
+	ResultPost struct {
+		Likes    int32  `json:"likes"`
+		Dislikes int32  `json:"dislikes"`
+		URL      string `json:"url"`
+	}
+
 	MongoPeriod string
 )
 
@@ -145,12 +151,17 @@ func (r MongoPeriod) GetSearchPeriodParams() (int64, primitive.DateTime, error) 
 	}
 }
 
-func GetUrls(posts []primitive.M) []string {
-	urls := make([]string, len(posts))
+func GetPosts(posts []primitive.M) []ResultPost {
+	result := make([]ResultPost, len(posts))
 
 	for i, post := range posts {
-		urls[i] = fmt.Sprintf("%s%s", conf.AppConf.ContentPath, post["file_id"])
-	}
+		p := ResultPost{
+			Likes:    post["likes_count"].(int32),
+			Dislikes: post["dislikes_count"].(int32),
+			URL:      fmt.Sprintf("%s%s", conf.AppConf.ContentPath, post["file_id"]),
+		}
 
-	return urls
+		result[i] = p
+	}
+	return result
 }
