@@ -130,9 +130,9 @@ func IsFileExist(fileName string) bool {
 // Golang считает, что начало недели это воскресенье, я так не считаю
 func getWeekday(now time.Weekday) int {
 	if int(now) == 0 {
-		return 7
+		return 6
 	} else {
-		return int(now)
+		return int(now) - 1
 	}
 }
 
