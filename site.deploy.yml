@@ -13,19 +13,19 @@
           docker_image:
             name: "{{ DOCKER_USERNAME }}/{{ IMG_NAME | lower }}:latest"
             state: absent
+
+        - name: Remove content
+          file:
+            state: absent
+            path: /opt/content
+
+        - name: Create cron job
+          cron:
+            name: "rm weekly content"
+            special_time: "weekly"
+            job: "rm -f /opt/content/*"
       become: yes
       become_user: root
-
-    - name: Remove content
-      file:
-        state: absent
-        path: /opt/content
-
-    - name: Create cron job
-      cron:
-        name: "rm weekly content"
-        special_time: "weekly"
-        job: "rm -f /opt/content/*"
 
     - name: Install
       block:
