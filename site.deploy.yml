@@ -13,6 +13,8 @@
           docker_image:
             name: "{{ DOCKER_USERNAME }}/{{ IMG_NAME | lower }}:latest"
             state: absent
+      become: yes
+      become_user: root
 
     - name: Remove content
       file:
