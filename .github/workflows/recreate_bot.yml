@@ -1,0 +1,26 @@
+name: recreate container
+on: [workflow_dispatch]
+jobs:
+  build:
+    name: Copy
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: copy file
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.HOST_USERNAME }}
+        password: ${{ secrets.HOST_PASSWORD }}
+        port: 22
+        source: "site.deploy.yml"
+        target: "~/playbooks"
+
+    - name: executing remote ssh commands using password
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.HOST_USERNAME }}
+        password: ${{ secrets.HOST_PASSWORD }}
+        port: 22
+        script: ansible-playbook ~/playbooks/site.deploy.yml --extra-vars '${{ toJson(secrets) }}'

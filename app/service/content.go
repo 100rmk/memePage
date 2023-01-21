@@ -45,6 +45,13 @@ type (
 		TgPath        string
 	}
 
+	ResultPost struct {
+		Likes       int32  `json:"likes"`
+		Dislikes    int32  `json:"dislikes"`
+		URL         string `json:"url"`
+		ContentType string `json:"content_type"`
+	}
+
 	MongoPeriod string
 )
 
@@ -120,17 +127,26 @@ func IsFileExist(fileName string) bool {
 	}
 }
 
+// Golang считает, что начало недели это воскресенье, я так не считаю
+func getWeekday(now time.Weekday) int {
+	if int(now) == 0 {
+		return 6
+	} else {
+		return int(now) - 1
+	}
+}
+
 func (r MongoPeriod) GetSearchPeriodParams() (int64, primitive.DateTime, error) {
 	now := time.Now()
 	switch r {
 	case Today:
-		return 1,
+		return 3,
 			primitive.NewDateTimeFromTime(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)),
 			nil
 	case Week:
 		return 10,
 			primitive.NewDateTimeFromTime(
-				time.Date(now.Year(), now.Month(), now.Day()-int(now.Weekday())+1, 0, 0, 0, 0, time.Local)),
+				time.Date(now.Year(), now.Month(), now.Day()-getWeekday(now.Weekday()), 0, 0, 0, 0, time.Local)),
 			nil
 	case Month:
 		return 10,
@@ -145,12 +161,18 @@ func (r MongoPeriod) GetSearchPeriodParams() (int64, primitive.DateTime, error) 
 	}
 }
 
-func GetUrls(posts []primitive.M) []string {
-	urls := make([]string, len(posts))
+func GetPosts(posts []primitive.M) []ResultPost {
+	result := make([]ResultPost, len(posts))
 
 	for i, post := range posts {
-		urls[i] = fmt.Sprintf("%s%s", conf.AppConf.ContentPath, post["file_id"])
-	}
+		p := ResultPost{
+			Likes:       post["likes_count"].(int32),
+			Dislikes:    post["dislikes_count"].(int32),
+			URL:         fmt.Sprintf("%s/content/%s", conf.AppConf.ServerUrl, post["file_id"]),
+			ContentType: post["content_type"].(string),
+		}
 
-	return urls
+		result[i] = p
+	}
+	return result
 }

@@ -17,6 +17,7 @@ var AppConf = appConfig{
 	Host:        getEnv("SERVER_HOST", "localhost"),
 	Port:        getEnv("SERVER_PORT", "1337"),
 	ContentPath: getEnv("CONTENT_PATH", "./"),
+	ServerUrl:   getEnv("SERVER_URL", "localhost"),
 }
 
 type mongoDB struct {
@@ -32,6 +33,7 @@ type appConfig struct {
 	Host        string
 	Port        string
 	ContentPath string
+	ServerUrl   string
 }
 
 func getEnv(key, fallback string) string {

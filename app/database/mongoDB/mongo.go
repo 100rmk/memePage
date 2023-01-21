@@ -42,6 +42,7 @@ func CreateViews(dbName string) {
 			{"$project": bson.M{
 				"file_id":        1,
 				"timestamp":      1,
+				"content_type":   1,
 				"likes_count":    bson.M{"$size": "$likes"},
 				"dislikes_count": bson.M{"$size": "$dislikes"},
 			}},

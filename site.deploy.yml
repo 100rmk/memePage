@@ -1,0 +1,60 @@
+- name: Recreate
+  hosts: localhost
+  any_errors_fatal: true
+  tasks:
+    - name: Remove
+      block:
+        - name: Remove docker container
+          docker_container:
+            name: "{{ IMG_NAME | lower }}"
+            state: absent
+
+        - name: Remove docker image
+          docker_image:
+            name: "{{ DOCKER_USERNAME }}/{{ IMG_NAME | lower }}:latest"
+            state: absent
+      become: yes
+      become_user: root
+
+    - name: Remove content
+      file:
+        state: absent
+        path: /opt/content
+
+    - name: Create cron job
+      cron:
+        name: "rm weekly content"
+        special_time: "weekly"
+        job: "rm -f /opt/content/*"
+
+    - name: Install
+      block:
+        - name: Docker login
+          docker_login:
+            email: "{{ EMAIL }}"
+            username: "{{ DOCKER_USERNAME }}"
+            password: "{{ DOCKER_PASSWORD }}"
+
+        - name: Запуск контейнера
+          docker_container:
+            name: "{{ IMG_NAME | lower }}"
+            image: "{{ DOCKER_USERNAME }}/{{ IMG_NAME | lower }}:latest"
+            restart_policy: unless-stopped
+            state: started
+            pull: yes
+            network_mode: host
+            volumes:
+              - /opt/content:/usr/src/app/content
+            env:
+              SERVER_HOST: "{{ SERVER_HOST }}"
+              SERVER_PORT: "{{ SERVER_PORT }}"
+
+              CONTENT_PATH: "{{ CONTENT_PATH }}"
+              SERVER_URL: "{{ SERVER_URL }}"
+              TELEGRAM_TOKEN: "{{ TELEGRAM_TOKEN }}"
+
+              DB_URL: "{{ DB_URL }}"
+              DB_NAME: "{{ DB_NAME }}"
+
+      become: yes
+      become_user: root
