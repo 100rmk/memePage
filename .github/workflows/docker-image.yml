@@ -19,4 +19,4 @@ jobs:
           context: .
           platforms: "linux/amd64"
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.IMG_NAME }}:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.IMG_NAME }}:latest
