@@ -1,3 +1,3 @@
 # Бэк для рейтинга постов
 
-#### Стэк: go, gin, mongodb, ansible, github actions, docker
+#### Стэк: go, gin, ~~mongodb~~(postgres), ansible, github actions, docker
