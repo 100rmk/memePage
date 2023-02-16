@@ -4,8 +4,8 @@ import (
 	"os"
 )
 
-var Mongo = mongoDB{
-	Url:    getEnv("DB_URL", "mongodb://localhost:27017"),
+var Postgres = postgresDB{
+	Url:    getEnv("DB_URL", "postgresql://postgres:postgres@localhost/postgres"),
 	DBName: getEnv("DB_NAME", "myDB"),
 }
 
@@ -20,7 +20,7 @@ var AppConf = appConfig{
 	ServerUrl:   getEnv("SERVER_URL", "localhost"),
 }
 
-type mongoDB struct {
+type postgresDB struct {
 	Url    string
 	DBName string
 }

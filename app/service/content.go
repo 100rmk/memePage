@@ -4,21 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"log"
 	"memePage/app/conf"
+	"memePage/app/database/postgresDB"
 	"net/http"
 	"os"
 	"time"
 )
 
 const (
-	Today   MongoPeriod = "today"
-	Week                = "week"
-	Month               = "month"
-	AllTime             = "all"
+	Today   PostgresPeriod = "today"
+	Week                   = "week"
+	Month                  = "month"
+	AllTime                = "all"
 )
 
 type (
@@ -46,21 +45,21 @@ type (
 	}
 
 	ResultPost struct {
-		Likes       int32  `json:"likes"`
-		Dislikes    int32  `json:"dislikes"`
+		Likes       int    `json:"likes"`
+		Dislikes    int    `json:"dislikes"`
 		URL         string `json:"url"`
 		ContentType string `json:"content_type"`
 	}
 
-	MongoPeriod string
+	PostgresPeriod string
 )
 
-func CheckFiles(posts []bson.M) {
+func CheckFiles(posts []postgresDB.PgPost) {
 	for _, post := range posts {
-		filePath := fmt.Sprintf("%s/%s", conf.AppConf.ContentPath, post["file_id"])
+		filePath := fmt.Sprintf("%s/%s", conf.AppConf.ContentPath, post.FileID)
 		if !IsFileExist(filePath) {
 			postTgUrl := make(chan string)
-			go GetFilePath(post["file_id"].(string), postTgUrl)
+			go GetFilePath(post.FileID, postTgUrl)
 			go DownloadTgFile(<-postTgUrl, filePath)
 			close(postTgUrl)
 		}
@@ -136,40 +135,39 @@ func getWeekday(now time.Weekday) int {
 	}
 }
 
-func (r MongoPeriod) GetSearchPeriodParams() (int64, primitive.DateTime, error) {
+func (r PostgresPeriod) GetSearchPeriodParams() (int64, time.Time, error) {
 	now := time.Now()
 	switch r {
 	case Today:
 		return 3,
-			primitive.NewDateTimeFromTime(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)),
+			time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local),
 			nil
 	case Week:
 		return 10,
-			primitive.NewDateTimeFromTime(
-				time.Date(now.Year(), now.Month(), now.Day()-getWeekday(now.Weekday()), 0, 0, 0, 0, time.Local)),
+			time.Date(now.Year(), now.Month(), now.Day()-getWeekday(now.Weekday()), 0, 0, 0, 0, time.Local),
 			nil
 	case Month:
 		return 10,
-			primitive.NewDateTimeFromTime(time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, time.Local)),
+			time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local),
 			nil
 	case AllTime:
 		return 10,
-			primitive.NewDateTimeFromTime(time.Date(0, 0, 0, 0, 0, 0, 0, time.Local)),
+			time.Time{},
 			nil
 	default:
-		return 0, 0, errors.New("unsupported period")
+		return 0, time.Time{}, errors.New("unsupported period")
 	}
 }
 
-func GetPosts(posts []primitive.M) []ResultPost {
+func GetPosts(posts []postgresDB.PgPost) []ResultPost {
 	result := make([]ResultPost, len(posts))
 
 	for i, post := range posts {
 		p := ResultPost{
-			Likes:       post["likes_count"].(int32),
-			Dislikes:    post["dislikes_count"].(int32),
-			URL:         fmt.Sprintf("%s/content/%s", conf.AppConf.ServerUrl, post["file_id"]),
-			ContentType: post["content_type"].(string),
+			Likes:       post.LikesCount,
+			Dislikes:    post.DislikesCount,
+			URL:         fmt.Sprintf("%s/content/%s", conf.AppConf.ServerUrl, post.FileID),
+			ContentType: post.ContentType,
 		}
 
 		result[i] = p
